@@ -1,7 +1,18 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import (
+    APIRouter,
+    UploadFile,
+    File,
+    HTTPException
+)
 
 from app.services.model_service import certificate_model
-from app.services.image_analysis import analyze_pixel_inconsistency
+from app.services.image_analysis import (
+    analyze_pixel_inconsistency
+)
+
+from app.services.text_anomaly_service import (
+    analyze_text_anomalies
+)
 
 import os
 import uuid
@@ -12,16 +23,28 @@ import uuid
 # ============================================================
 
 router = APIRouter(
+
     prefix="/api",
-    tags=["Certificate Detection"]
+
+    tags=[
+        "Certificate Detection"
+    ]
+
 )
 
 
 # ============================================================
-# UPLOAD FOLDER
+# FOLDERS
 # ============================================================
 
-UPLOAD_FOLDER = r"D:\certificate-forgery-backend(2)\uploads"
+BASE_DIR = (
+    r"D:\certificate-forgery-backend(2)"
+)
+
+UPLOAD_FOLDER = os.path.join(
+    BASE_DIR,
+    "uploads"
+)
 
 os.makedirs(
     UPLOAD_FOLDER,
@@ -34,17 +57,23 @@ os.makedirs(
 # ============================================================
 
 ALLOWED_TYPES = {
+
     "image/jpeg",
+
     "image/jpg",
+
     "image/png"
+
 }
 
 
 # ============================================================
-# PREDICT CERTIFICATE
+# PREDICT ENDPOINT
 # ============================================================
 
-@router.post("/predict")
+@router.post(
+    "/predict"
+)
 async def predict_certificate(
     file: UploadFile = File(...)
 ):
@@ -56,12 +85,16 @@ async def predict_certificate(
     if file.content_type not in ALLOWED_TYPES:
 
         raise HTTPException(
+
             status_code=400,
+
             detail=(
-                "Only JPG and PNG certificate "
-                "images are allowed."
+                "Only JPG and PNG "
+                "certificate images are allowed."
             )
+
         )
+
 
     # --------------------------------------------------------
     # READ FILE
@@ -69,35 +102,54 @@ async def predict_certificate(
 
     image_bytes = await file.read()
 
+
     if not image_bytes:
 
         raise HTTPException(
+
             status_code=400,
+
             detail="Uploaded file is empty."
+
         )
 
+
     # --------------------------------------------------------
-    # CREATE UNIQUE FILE NAME
+    # CREATE TEMPORARY FILE
     # --------------------------------------------------------
 
     extension = os.path.splitext(
-        file.filename
+        file.filename or ""
     )[1].lower()
+
+
+    if extension not in [
+        ".jpg",
+        ".jpeg",
+        ".png"
+    ]:
+
+        extension = ".jpg"
+
 
     unique_filename = (
         f"{uuid.uuid4()}{extension}"
     )
+
 
     image_path = os.path.join(
         UPLOAD_FOLDER,
         unique_filename
     )
 
+
     # --------------------------------------------------------
-    # SAVE TEMPORARY IMAGE
+    # PROCESS
     # --------------------------------------------------------
 
     try:
+
+        # Save uploaded certificate
 
         with open(
             image_path,
@@ -108,13 +160,17 @@ async def predict_certificate(
                 image_bytes
             )
 
+
         # ----------------------------------------------------
-        # MODEL PREDICTION
+        # AI MODEL ANALYSIS
         # ----------------------------------------------------
 
-        prediction = certificate_model.predict(
-            image_path
+        prediction = (
+            certificate_model.predict(
+                image_path
+            )
         )
+
 
         # ----------------------------------------------------
         # PIXEL ANALYSIS
@@ -126,8 +182,20 @@ async def predict_certificate(
             )
         )
 
+
         # ----------------------------------------------------
-        # FINAL RESPONSE
+        # OCR + LOF
+        # ----------------------------------------------------
+
+        text_analysis = (
+            analyze_text_anomalies(
+                image_path
+            )
+        )
+
+
+        # ----------------------------------------------------
+        # FINAL API RESPONSE
         # ----------------------------------------------------
 
         response = {
@@ -136,97 +204,205 @@ async def predict_certificate(
 
             "filename": file.filename,
 
-            # Overall result
-            "prediction": prediction[
-                "prediction"
-            ],
+            # -----------------------------------------------
+            # FINAL RESNET CLASSIFICATION
+            # -----------------------------------------------
 
-            "confidence": prediction[
-                "confidence"
-            ],
+            "prediction": (
+                prediction["prediction"]
+            ),
 
-            # ResNet50
+            "confidence": (
+                prediction["confidence"]
+            ),
+
+            # -----------------------------------------------
+            # RESNET50
+            # -----------------------------------------------
+
             "classification": {
 
                 "model": "ResNet50",
 
-                "prediction": prediction[
-                    "resnet_prediction"
-                ],
+                "prediction": (
+                    prediction[
+                        "resnet_prediction"
+                    ]
+                ),
 
-                "confidence": prediction[
-                    "resnet_confidence"
-                ],
+                "confidence": (
+                    prediction[
+                        "resnet_confidence"
+                    ]
+                ),
 
-                "forged_probability": prediction[
-                    "forged_probability"
-                ],
+                "forged_probability": (
+                    prediction[
+                        "forged_probability"
+                    ]
+                ),
 
-                "authentic_probability": prediction[
-                    "authentic_probability"
-                ]
+                "authentic_probability": (
+                    prediction[
+                        "authentic_probability"
+                    ]
+                )
+
             },
 
+
+            # -----------------------------------------------
             # YOLO11
+            # -----------------------------------------------
+
             "region_detection": {
 
                 "model": "YOLO11",
 
-                "summary": prediction[
-                    "yolo_prediction"
-                ],
+                "summary": (
+                    prediction[
+                        "yolo_prediction"
+                    ]
+                ),
 
-                "confidence": prediction[
-                    "yolo_confidence"
-                ],
+                "confidence": (
+                    prediction[
+                        "yolo_confidence"
+                    ]
+                ),
 
-                "detections": prediction[
-                    "detections"
-                ]
+                "fake_region_count": (
+                    prediction[
+                        "fake_region_count"
+                    ]
+                ),
+
+                "true_region_count": (
+                    prediction[
+                        "true_region_count"
+                    ]
+                ),
+
+                "fake_region_confidence": (
+                    prediction[
+                        "fake_region_confidence"
+                    ]
+                ),
+
+                "true_region_confidence": (
+                    prediction[
+                        "true_region_confidence"
+                    ]
+                ),
+
+                "detections": (
+                    prediction[
+                        "detections"
+                    ]
+                )
+
             },
 
-            # Pixel analysis
-            "pixel_analysis": pixel_analysis,
 
-            # Message
+            # -----------------------------------------------
+            # PIXEL ANALYSIS
+            # -----------------------------------------------
+
+            "pixel_analysis": (
+                pixel_analysis
+            ),
+
+
+            # -----------------------------------------------
+            # OCR + LOF
+            # -----------------------------------------------
+
+            "text_analysis": (
+                text_analysis
+            ),
+
+
+            # -----------------------------------------------
+            # RESULT IMAGE
+            # -----------------------------------------------
+
+            "result_image": (
+                prediction[
+                    "result_image"
+                ]
+            ),
+
+
+            # -----------------------------------------------
+            # INTERPRETATION
+            # -----------------------------------------------
+
+            "interpretation": (
+                prediction[
+                    "interpretation"
+                ]
+            ),
+
+
+            # -----------------------------------------------
+            # MESSAGE
+            # -----------------------------------------------
+
             "message": (
 
-                "Possible certificate forgery detected."
-                if prediction["prediction"]
-                == "Forged"
+                "Possible certificate "
+                "forgery detected."
+
+                if prediction[
+                    "prediction"
+                ] == "Forged"
 
                 else
 
                 "Certificate appears authentic."
+
             )
+
         }
+
 
         return response
 
+
     # --------------------------------------------------------
-    # MODEL FILE ERROR
+    # FILE NOT FOUND
     # --------------------------------------------------------
 
     except FileNotFoundError as exc:
 
         raise HTTPException(
+
             status_code=503,
+
             detail=str(exc)
+
         )
 
+
     # --------------------------------------------------------
-    # OTHER ERRORS
+    # OTHER ERROR
     # --------------------------------------------------------
 
     except Exception as exc:
 
         raise HTTPException(
+
             status_code=500,
-            detail=f"Prediction failed: {exc}"
+
+            detail=(
+                f"Prediction failed: {exc}"
+            )
+
         )
 
+
     # --------------------------------------------------------
-    # DELETE TEMP IMAGE
+    # CLEANUP
     # --------------------------------------------------------
 
     finally:
@@ -235,6 +411,12 @@ async def predict_certificate(
             image_path
         ):
 
-            os.remove(
-                image_path
-            )
+            try:
+
+                os.remove(
+                    image_path
+                )
+
+            except Exception:
+
+                pass

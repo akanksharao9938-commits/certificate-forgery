@@ -2,6 +2,8 @@ import os
 import numpy as np
 import tensorflow as tf
 
+from tensorflow.keras.models import load_model
+
 from sklearn.metrics import (
     accuracy_score,
     precision_score,
@@ -12,17 +14,11 @@ from sklearn.metrics import (
 )
 
 
-# ==================================================
+# ============================================================
 # PATHS
-# ==================================================
+# ============================================================
 
 BASE_DIR = r"D:\certificate-forgery-backend(2)"
-
-TEST_DIR = os.path.join(
-    BASE_DIR,
-    "resnet_dataset",
-    "test"
-)
 
 MODEL_PATH = os.path.join(
     BASE_DIR,
@@ -30,47 +26,47 @@ MODEL_PATH = os.path.join(
     "resnet_certificate_model_finetuned.keras"
 )
 
+TEST_DIR = os.path.join(
+    BASE_DIR,
+    "resnet_dataset",
+    "test"
+)
 
-# ==================================================
+
+# ============================================================
 # SETTINGS
-# ==================================================
+# ============================================================
 
 IMAGE_SIZE = (224, 224)
 
-BATCH_SIZE = 4
 
-
-# ==================================================
-# CHECK MODEL
-# ==================================================
-
-if not os.path.exists(MODEL_PATH):
-
-    raise FileNotFoundError(
-        f"Fine-tuned model not found:\n{MODEL_PATH}"
-    )
-
-
-# ==================================================
+# ============================================================
 # LOAD MODEL
-# ==================================================
+# ============================================================
 
-print()
-print("Loading fine-tuned ResNet50 model...")
+print("=" * 70)
+print("RESNET50 TEST EVALUATION")
+print("=" * 70)
 
-model = tf.keras.models.load_model(
+print("\nLoading model...")
+
+model = load_model(
     MODEL_PATH
 )
 
-print("Fine-tuned model loaded successfully.")
+print("Model loaded successfully.")
+
+print("\nModel:")
+print(MODEL_PATH)
 
 
-# ==================================================
-# LOAD TEST DATA
-# ==================================================
+# ============================================================
+# LOAD TEST DATASET
+# ============================================================
 
-print()
-print("Loading test dataset...")
+print("\n" + "=" * 70)
+print("LOADING TEST DATASET")
+print("=" * 70)
 
 test_dataset = tf.keras.utils.image_dataset_from_directory(
 
@@ -78,68 +74,71 @@ test_dataset = tf.keras.utils.image_dataset_from_directory(
 
     image_size=IMAGE_SIZE,
 
-    batch_size=BATCH_SIZE,
+    batch_size=1,
 
     label_mode="binary",
 
     shuffle=False
 )
 
-
-class_names = test_dataset.class_names
-
-print()
-print("Class names:")
-print(class_names)
+print("\nClass names:")
+print(test_dataset.class_names)
 
 
-# ==================================================
+# ============================================================
 # PREDICTIONS
-# ==================================================
+# ============================================================
+
+print("\n" + "=" * 70)
+print("RUNNING PREDICTIONS")
+print("=" * 70)
 
 y_true = []
-
-y_probability = []
+y_pred = []
+probabilities = []
 
 
 for images, labels in test_dataset:
 
-    predictions = model.predict(
+    prediction = model.predict(
         images,
         verbose=0
     )
 
-    y_probability.extend(
-        predictions.flatten()
+    # Model output is a single sigmoid probability.
+    probability = float(
+        np.asarray(prediction).reshape(-1)[0]
     )
 
-    y_true.extend(
-        labels.numpy().flatten()
+    # 0 = authentic
+    # 1 = forged
+    predicted_class = (
+        1
+        if probability >= 0.5
+        else 0
+    )
+
+    # Convert TensorFlow label safely to a scalar.
+    true_class = int(
+        np.asarray(labels.numpy()).reshape(-1)[0]
+    )
+
+    y_true.append(
+        true_class
+    )
+
+    y_pred.append(
+        predicted_class
+    )
+
+    probabilities.append(
+        probability
     )
 
 
-y_true = np.array(
-    y_true
-).astype(int)
-
-
-y_probability = np.array(
-    y_probability
-)
-
-
-# ==================================================
-# CLASSIFICATION
-# ==================================================
-
-y_pred = (
-    y_probability >= 0.5
-).astype(int)
-
-
-# ==================================================
+# ============================================================
 # METRICS
-# ==================================================
+# ============================================================
 
 accuracy = accuracy_score(
     y_true,
@@ -165,9 +164,9 @@ f1 = f1_score(
 )
 
 
-# ==================================================
+# ============================================================
 # CONFUSION MATRIX
-# ==================================================
+# ============================================================
 
 cm = confusion_matrix(
     y_true,
@@ -175,78 +174,138 @@ cm = confusion_matrix(
 )
 
 
-# ==================================================
-# RESULTS
-# ==================================================
+# ============================================================
+# FINAL RESULTS
+# ============================================================
 
-print()
-print("==========================================")
-print("FINE-TUNED RESNET50 TEST RESULTS")
-print("==========================================")
-
-print()
+print("\n" + "=" * 70)
+print("FINAL TEST RESULTS")
+print("=" * 70)
 
 print(
-    f"Accuracy  : {accuracy * 100:.2f}%"
+    f"\nTest images: {len(y_true)}"
 )
 
 print(
-    f"Precision : {precision * 100:.2f}%"
+    f"Accuracy : {accuracy * 100:.2f}%"
 )
 
 print(
-    f"Recall    : {recall * 100:.2f}%"
+    f"Precision: {precision * 100:.2f}%"
 )
 
 print(
-    f"F1-Score  : {f1 * 100:.2f}%"
+    f"Recall   : {recall * 100:.2f}%"
+)
+
+print(
+    f"F1-score : {f1 * 100:.2f}%"
 )
 
 
-# ==================================================
+# ============================================================
 # CONFUSION MATRIX
-# ==================================================
+# ============================================================
 
-print()
-print("==========================================")
+print("\n" + "=" * 70)
 print("CONFUSION MATRIX")
-print("==========================================")
+print("=" * 70)
 
-print(cm)
+print("\nRows = Actual")
+print("Columns = Predicted")
+
+print(
+    "\n              Authentic  Forged"
+)
+
+print(
+    f"Authentic     {cm[0][0]:8d}  {cm[0][1]:6d}"
+)
+
+print(
+    f"Forged        {cm[1][0]:8d}  {cm[1][1]:6d}"
+)
 
 
-# ==================================================
+# ============================================================
 # CLASSIFICATION REPORT
-# ==================================================
+# ============================================================
 
-print()
-print("==========================================")
+print("\n" + "=" * 70)
 print("CLASSIFICATION REPORT")
-print("==========================================")
+print("=" * 70)
 
 print(
     classification_report(
         y_true,
         y_pred,
-        target_names=class_names,
+        target_names=[
+            "Authentic",
+            "Forged"
+        ],
         zero_division=0
     )
 )
 
 
-# ==================================================
-# CLASS MAPPING
-# ==================================================
+# ============================================================
+# PREDICTION COUNTS
+# ============================================================
 
-print()
-print("Class mapping:")
+authentic_predictions = sum(
+    1
+    for p in y_pred
+    if p == 0
+)
 
-for index, class_name in enumerate(class_names):
+forged_predictions = sum(
+    1
+    for p in y_pred
+    if p == 1
+)
 
-    print(
-        f"{index} = {class_name}"
-    )
+actual_authentic = sum(
+    1
+    for p in y_true
+    if p == 0
+)
+
+actual_forged = sum(
+    1
+    for p in y_true
+    if p == 1
+)
 
 
-print()
-print("Fine-tuned model evaluation completed!")
+print("\n" + "=" * 70)
+print("DATASET / PREDICTION COUNTS")
+print("=" * 70)
+
+print(
+    f"\nActual Authentic: "
+    f"{actual_authentic}"
+)
+
+print(
+    f"Actual Forged: "
+    f"{actual_forged}"
+)
+
+print(
+    f"\nPredicted Authentic: "
+    f"{authentic_predictions}"
+)
+
+print(
+    f"Predicted Forged: "
+    f"{forged_predictions}"
+)
+
+
+# ============================================================
+# COMPLETE
+# ============================================================
+
+print("\n" + "=" * 70)
+print("EVALUATION COMPLETED")
+print("=" * 70)
