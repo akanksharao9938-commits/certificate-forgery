@@ -1,4 +1,48 @@
-# Optical Character Forgery Anomaly Detection
+# CNN-Based Academic Certificate Forgery Detection Using Deep Learning
+
+## Automated Classification of Academic Certificates as Authentic or Forged Using a Fine-Tuned ResNet50 Convolutional Neural Network
+
+---
+
+## 📌 Project Overview
+
+Academic certificates are important documents used for education, employment, scholarships, admissions, and professional verification. With the increasing use of digital certificates, image-editing tools can be used to modify certificate information.
+
+This project presents a **CNN-Based Academic Certificate Forgery Detection System** that uses **Deep Learning and a fine-tuned ResNet50 Convolutional Neural Network** to classify certificate images as **Authentic** or **Forged**.
+
+The system uses transfer learning with a pretrained ResNet50 model. The certificate image is processed, resized, and passed through the CNN, which learns visual patterns from the image and produces a binary classification result.
+
+The project is implemented with a **FastAPI backend** and a **React-based frontend** to provide a simple certificate-upload and prediction interface.
+
+---
+
+## 🎯 Objectives
+
+The main objectives of this project are:
+
+- Detect potentially forged academic certificate images.
+- Classify certificates into Authentic and Forged categories.
+- Apply deep learning for certificate image analysis.
+- Use a pretrained ResNet50 model through transfer learning.
+- Fine-tune the CNN for the certificate dataset.
+- Evaluate the trained model using standard classification metrics.
+- Provide certificate predictions through a web-based application.
+- Integrate the trained model with a FastAPI backend.
+
+---
+
+## 🧠 Problem Statement
+
+Manual verification of academic certificates can be time-consuming and difficult when dealing with a large number of documents.
+
+The objective of this project is to develop a deep learning-based system that can automatically analyze an academic certificate image and classify it as:
+
+```text
+Authentic
+    OR
+Forged
+
+#2. Optical Character Forgery Anomaly Detection
 
 ## Pattern Recognition Project
 
